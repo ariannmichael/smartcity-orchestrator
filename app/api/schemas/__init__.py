@@ -14,9 +14,9 @@ class EventOut(BaseModel):
     service: str = Field(..., description="The service that produced the event")
     timestamp: datetime = Field(..., description="The timestamp of the event")
     payload: dict = Field(..., description="The payload of the event")
-    normalized_payload: dict = Field(..., description="The normalized payload of the event")
-    deduplication_key: str = Field(..., description="The deduplication key of the event")
-    source_event_id: UUID = Field(..., description="The ID of the source event")
+    normalized_payload: dict | None = Field(None, description="The normalized payload of the event (optional)")
+    deduplication_key: str | None = Field(None, description="The deduplication key of the event (optional)")
+    source_event_id: UUID | None = Field(None, description="The ID of the source event (optional)")
     created_at: datetime = Field(..., description="The timestamp of the event creation")
 
     model_config = ConfigDict(from_attributes=True)

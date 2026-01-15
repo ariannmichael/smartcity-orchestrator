@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -18,7 +19,30 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+
+from app.core.config import settings
+from app.core.db import Base
+
+from app.infra.persistence.models.event import Event
+from app.infra.persistence.models.outbox import OutboxMessage
+target_metadata = Base.metadata
+
+
+def get_database_url() -> str:
+    """Get database URL, replacing 'db' hostname with 'localhost' for local development."""
+    url = os.getenv("ALEMBIC_DATABASE_URL") or settings.DATABASE_URL
+    
+    # Only replace 'db' with 'localhost' when running locally (outside Docker)
+    # Inside Docker containers, we should use the service name 'db'
+    # Check if we're running inside Docker by looking for /.dockerenv
+    is_inside_docker = os.path.exists("/.dockerenv")
+    
+    if not is_inside_docker and "@db" in url:
+        # Replace 'db' hostname with 'localhost' when running locally
+        # Common format: postgresql://user:pass@db:5432/dbname -> postgresql://user:pass@localhost:5432/dbname
+        url = url.replace("@db", "@localhost")
+    
+    return url
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -38,7 +62,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = config.get_main_option("sqlalchemy.url") or get_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -51,22 +75,17 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+    configuration = config.get_section(config.config_ini_section) or {}
+    configuration["sqlalchemy.url"] = get_database_url()
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
