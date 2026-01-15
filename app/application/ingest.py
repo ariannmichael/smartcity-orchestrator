@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List, Tuple
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.events.types import NormalizedEvent
